@@ -24,9 +24,6 @@ sudo apt install libopus-dev
 
 # Fedora/RHEL
 sudo dnf install opus-devel
-
-# macOS
-brew install opus
 ```
 
 ### Installation
