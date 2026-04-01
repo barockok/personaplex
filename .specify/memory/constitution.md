@@ -1,50 +1,144 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+  Sync Impact Report
+  ==================
+  Version change: (none) → 1.0.0
+  Modified principles: N/A (initial ratification)
+  Added sections:
+    - Core Principles (5): Model Integrity, Real-Time Performance,
+      Reproducibility, Test Before Ship, Simplicity
+    - Technical Standards
+    - Development Workflow
+    - Governance
+  Removed sections: N/A
+  Templates requiring updates:
+    - .specify/templates/plan-template.md — ✅ no update needed
+      (Constitution Check section is generic; gates derived at plan time)
+    - .specify/templates/spec-template.md — ✅ no update needed
+      (requirements and scenarios structure is compatible)
+    - .specify/templates/tasks-template.md — ✅ no update needed
+      (phase structure accommodates all principle-driven task types)
+    - .specify/templates/checklist-template.md — ✅ no update needed
+  Follow-up TODOs: none
+-->
+
+# PersonaPlex Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Model Integrity
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+All changes to model architecture, weight loading, audio codecs, or
+inference pipelines MUST preserve correctness of model outputs.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+- Model weights MUST NOT be modified in-place; any fine-tuning or
+  adaptation MUST produce a new artifact with a versioned identifier.
+- Audio codec parameters (sample rate, frame size, Opus settings)
+  MUST match the values the model was trained with unless an
+  explicit migration is documented and tested.
+- Voice prompt embeddings and text prompts MUST be validated against
+  the supported set before inference begins.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+**Rationale**: PersonaPlex is a research model whose outputs are
+evaluated against published benchmarks (FullDuplexBench). Silent
+regressions in model behavior undermine reproducibility and trust.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### II. Real-Time Performance
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+The server mode MUST maintain low-latency, full-duplex audio
+streaming under normal operating conditions.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+- Hot-path code (audio encode/decode, token generation, streaming
+  I/O) MUST NOT introduce blocking operations or unbounded
+  allocations.
+- Memory-intensive operations (model loading, weight transfer) MUST
+  support the `--cpu-offload` path for GPUs with limited VRAM.
+- WebSocket and audio stream handling MUST be non-blocking; timeouts
+  MUST be explicit and configurable.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+**Rationale**: PersonaPlex is a real-time conversational system.
+Latency spikes or OOM crashes during inference directly degrade the
+user experience and invalidate latency benchmarks.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### III. Reproducibility
+
+Given identical inputs (audio, prompts, seed, model weights), the
+system MUST produce deterministic outputs in offline mode.
+
+- The `--seed` flag MUST fully control all sources of randomness in
+  offline evaluation.
+- Inference configuration (voice prompt, text prompt, model version)
+  MUST be logged or serializable so that any run can be reproduced.
+- Docker and pip environments MUST pin dependency versions to avoid
+  silent behavior changes across installs.
+
+**Rationale**: Research credibility depends on reproducible results.
+The paper and benchmarks reference specific seeds and configurations.
+
+### IV. Test Before Ship
+
+Every user-facing change MUST be verified before merge.
+
+- Bug fixes MUST include a regression test or a manual verification
+  procedure documented in the PR.
+- New CLI flags or server endpoints MUST include usage examples that
+  can be run as smoke tests.
+- Offline evaluation scripts MUST produce consistent outputs when
+  run against the reference test assets in `assets/test/`.
+
+**Rationale**: The project serves both researchers and developers.
+Broken CLI commands or silent output regressions erode adoption.
+
+### V. Simplicity
+
+Prefer the smallest change that solves the problem. Do not add
+abstractions, configuration, or indirection without a concrete need.
+
+- New dependencies MUST be justified; prefer the Python standard
+  library or existing project dependencies when feasible.
+- Configuration MUST use CLI arguments or environment variables;
+  avoid config file proliferation.
+- Code comments MUST explain *why*, not *what*. Self-evident code
+  needs no annotation.
+
+**Rationale**: PersonaPlex is a focused research artifact. Excess
+complexity slows onboarding, increases maintenance burden, and
+obscures the core model logic.
+
+## Technical Standards
+
+- **Language**: Python 3.10+ with PyTorch.
+- **Audio**: Opus codec via `libopus`; sample rate and frame
+  parameters MUST match model training configuration.
+- **Packaging**: `pip install moshi/.` from repository root.
+  `pyproject.toml` is the single source of dependency truth.
+- **Containerization**: `Dockerfile` and `docker-compose.yaml` MUST
+  remain buildable and consistent with the pip install path.
+- **Secrets**: HuggingFace tokens (`HF_TOKEN`) MUST NOT be committed
+  to the repository. `.env` files MUST be gitignored.
+
+## Development Workflow
+
+- All code changes MUST be submitted via pull request with at least
+  one reviewer.
+- Commits MUST have descriptive messages; prefer imperative mood
+  (e.g., "fix OOM during model init").
+- Breaking changes to CLI interface or server API MUST be documented
+  in the PR description and README.
+- The `main` branch MUST always be in a deployable state: server
+  starts, offline evaluation completes on reference inputs.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution is the authoritative source of project principles.
+It supersedes informal conventions when conflicts arise.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+- **Amendments** require a pull request with rationale, review by at
+  least one maintainer, and an updated version number.
+- **Versioning** follows semantic versioning:
+  - MAJOR: principle removed or fundamentally redefined.
+  - MINOR: new principle or section added.
+  - PATCH: clarification or wording fix.
+- **Compliance** is verified during code review. Reviewers SHOULD
+  reference specific principles when requesting changes.
+
+**Version**: 1.0.0 | **Ratified**: 2026-04-01 | **Last Amended**: 2026-04-01

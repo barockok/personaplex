@@ -19,7 +19,7 @@ RUN uv sync
 
 RUN mkdir -p /app/ssl
 
-EXPOSE 8998
+EXPOSE 8998 9000
 
 ENTRYPOINT []
 CMD ["/app/moshi/.venv/bin/python", "-m", "moshi.server", "--ssl", "/app/ssl"]

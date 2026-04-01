@@ -58,7 +58,33 @@ SSL_DIR=$(mktemp -d); python -m moshi.server --ssl "$SSL_DIR"
 SSL_DIR=$(mktemp -d); python -m moshi.server --ssl "$SSL_DIR" --cpu-offload
 ```
 
-Access the Web UI from a browser at `localhost:8998` if running locally, otherwise look for the access link printed by the script:
+**Multi-Session Mode:** Allow multiple concurrent voice sessions per server process:
+```bash
+SSL_DIR=$(mktemp -d); python -m moshi.server --ssl "$SSL_DIR" --max-sessions 5 --worker-id gpu-worker-1
+```
+
+**Mock Mode (No GPU):** Run the server with a mock inference backend for testing:
+```bash
+python -m moshi.server --mock --max-sessions 3 --port 8998
+```
+
+### Session Router
+
+Distribute connections across multiple worker processes:
+```bash
+# Start workers
+python -m moshi.server --max-sessions 3 --port 8998 --worker-id worker-1
+python -m moshi.server --max-sessions 3 --port 8999 --worker-id worker-2
+
+# Start router
+python -m moshi.router --port 9000 \
+  --workers worker-1:localhost:8998 \
+  --workers worker-2:localhost:8999
+```
+
+Health and metrics endpoints are available on both workers (`/health`, `/metrics`) and the router.
+
+Access the Web UI from a browser at `localhost:8998` (direct) or `localhost:9000` (via router) if running locally, otherwise look for the access link printed by the script:
 ```
 Access the Web UI directly at https://11.54.401.33:8998
 ```

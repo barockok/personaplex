@@ -12,7 +12,18 @@ dependencies = [
     "sphn >= 0.1.4, < 0.2",
     "torch >= 2.2.0, < 2.5",
     "aiohttp>=3.10.5, <3.11",
+    "prometheus-client>=0.20, <1.0",
 ]
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0,<9.0",
+    "pytest-asyncio>=0.21,<1.0",
+    "prometheus-client>=0.20,<1.0",
+]
+metrics = [
+    "prometheus-client>=0.20,<1.0",
+]
+
 authors = [{name="Rajarshi Roy", email="rajarshir@nvidia.com"}]
 maintainers = [{name="Rajarshi Roy", email="rajarshir@nvidia.com"}]
 license = {text = "MIT"}
@@ -22,6 +33,7 @@ readme = "README.md"
 [project.scripts]
 moshi-server = "moshi.server:main"
 moshi-offline = "moshi.offline:main"
+moshi-router = "moshi.router:main"
 
 [tool.setuptools.dynamic]
 version = {attr = "moshi.__version__"}
