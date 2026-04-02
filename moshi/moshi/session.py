@@ -12,6 +12,8 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Optional
 
+import random
+
 import aiohttp
 from aiohttp import web
 import numpy as np
@@ -21,6 +23,17 @@ import torch
 from .utils.logging import setup_logger, ColorizedLog
 
 logger = setup_logger(__name__)
+
+
+def _seed_all(seed):
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.backends.cudnn.deterministic = False
+    torch.backends.cudnn.benchmark = False
 
 
 class SessionStatus(enum.Enum):
@@ -63,8 +76,6 @@ class Session:
         Extracted from the original ServerState.handle_chat, but
         operates on this session's own streaming context.
         """
-        from .server import seed_all, wrap_with_system_tags
-
         clog = ColorizedLog.randomize()
         clog.log("info", f"[{self.session_id[:8]}] session starting")
 
@@ -72,7 +83,7 @@ class Session:
         frame_size = self._frame_size()
 
         if self.seed is not None and self.seed != -1:
-            seed_all(self.seed)
+            _seed_all(self.seed)
 
         opus_writer = sphn.OpusStreamWriter(self.mimi.sample_rate)
         opus_reader = sphn.OpusStreamReader(self.mimi.sample_rate)
@@ -180,11 +191,17 @@ class Session:
                     await ws.send_bytes(b"\x01" + msg)
 
         tasks = [
-            asyncio.create_task(recv_loop()),
-            asyncio.create_task(opus_loop()),
-            asyncio.create_task(send_loop()),
+            asyncio.create_task(recv_loop(), name="recv"),
+            asyncio.create_task(opus_loop(), name="opus"),
+            asyncio.create_task(send_loop(), name="send"),
         ]
         done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for task in done:
+            exc = task.exception()
+            if exc:
+                clog.log("error", f"[{self.session_id[:8]}] {task.get_name()} crashed: {exc}")
+            else:
+                clog.log("info", f"[{self.session_id[:8]}] {task.get_name()} finished")
         for task in pending:
             task.cancel()
             try:

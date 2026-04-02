@@ -102,10 +102,15 @@ class SessionManager:
             f"duration={duration:.1f}s ({self.active_count}/{self.max_sessions})"
         )
 
+    @staticmethod
+    def _wrap_with_system_tags(text: str) -> str:
+        cleaned = text.strip()
+        if cleaned.startswith("<system>") and cleaned.endswith("<system>"):
+            return cleaned
+        return f"<system> {cleaned} <system>"
+
     def _create_session(self, request: web.Request) -> Session:
         """Build a Session with per-session streaming context references."""
-        from .server import wrap_with_system_tags
-
         voice_prompt_path = self._resolve_voice_prompt(
             request.query.get("voice_prompt", "")
         )
@@ -128,7 +133,7 @@ class SessionManager:
 
         if text_prompt:
             self.lm_gen.text_prompt_tokens = self.text_tokenizer.encode(
-                wrap_with_system_tags(text_prompt)
+                self._wrap_with_system_tags(text_prompt)
             )
         else:
             self.lm_gen.text_prompt_tokens = None
@@ -172,3 +177,4 @@ class SessionManager:
             "max_sessions": self.max_sessions,
             "healthy": True,
         }
+# force rebuild 1775087085
